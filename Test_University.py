@@ -2,7 +2,7 @@ import unittest
 import os
 from University import Repository
 
-class TestUniversity2(unittest.TestCase):
+class TestUniversity(unittest.TestCase):
     """This class tests the summary of students, instructors and majors"""
 
     def test_one_student(self):
