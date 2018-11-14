@@ -6,7 +6,7 @@ import os
 class Student:
     """The Student Class holds all the details of a student, including cwid, name, major, course and grade"""
 
-    stu_pt_header = ["CWID", "Name", "Major", "Courses"]
+    stu_pt_header = ["CWID", "Name", "Major", "Completed Courses", "Remaining Required", "Remaining Electives"]
 
     def __init__(self, cwid, name, major):
         """This method initializes a Student"""
@@ -21,10 +21,12 @@ class Student:
 
         self.course_grade[course] = grade
 
-    def one_student(self):
+    def one_student(self, my_major):
         """This method creates a list for one row for the summary of one student"""
+        # "CWID", "Name", "Major", "Completed Courses", "Remaining Required", "Remaining Electives"
 
-        return [self.cwid, self.name, self.major, sorted(self.course_grade.keys())]
+        completed_courses, remaining_required, remaining_electives = my_major.completed_courses(self.course_grade)
+        return [self.cwid, self.name, self.major, completed_courses, remaining_required, remaining_electives]
 
 class Instructor:
     """The Instructor Class holds all details of an instructor, including the cwid, name, department, the course
@@ -76,6 +78,41 @@ def file_reader(path, num_of_field, sep='\t', header=False):
                         my_line = tuple(my_line)
                         yield my_line
 
+class Major:
+    maj_pt_header = ["Dept", "Required", "Electives"]
+
+    def __init__(self, major):
+        """This method initializes a Major"""
+
+        self.major = major
+        self.course_req = set()
+        self.course_elec = set()
+
+    def add_course(self, flag, course):
+        """ This method add a course depending on whether it is a required course or an elective """
+        if flag == 'R':
+            self.course_req.add(course)
+        elif flag == 'E':
+            self.course_elec.add(course)
+
+    def completed_courses(self, courses):
+        """This method calculates and returns completed_courses, remaining_required, remaining_electives given
+        a dictionary with course and grades """
+
+        completed_courses = {course for course, grade in courses.items() if
+                             grade in ('A', 'A-', 'B+', 'B', 'B-', 'C+', 'C')}
+        remaining_required = self.course_req - completed_courses
+        if self.course_elec.intersection(completed_courses):
+            remaining_electives = None
+        else:
+            remaining_electives = self.course_elec
+
+        return sorted(completed_courses), remaining_required, remaining_electives
+
+    def one_major(self):
+        """This method creates a list for one row for the summary of one major"""
+        return [self.major, sorted(self.course_req), sorted(self.course_elec)]
+
 class Repository:
     """This Repository Class holds students, instructors and grades"""
 
@@ -84,11 +121,14 @@ class Repository:
 
         self.cwid_student = dict()  # cwid_student [cwid] = Student ()
         self.cwid_instructor = dict()  # cwid_instructor [cwid] = Instructor ()
+        self.major_course = dict()
         self.student_file(os.path.join(dir, "students.txt"))
         self.instructor_file(os.path.join(dir, "instructors.txt"))
         self.grade_file(os.path.join(dir, "grades.txt"))
+        self.majors_file(os.path.join(dir, "majors.txt"))
         self.stu_pretty_table()
         self.inst_pretty_table()
+        self.maj_pretty_table()
 
     def student_file(self, path):
         """This method reads the student text file and records the information in a dictonary"""
@@ -110,6 +150,15 @@ class Repository:
             self.cwid_student[stu_cwid].add_grade(course, grade)
             self.cwid_instructor[inst_cwid].add_course(course)
 
+    def majors_file(self, path):
+        """This method reads the majors text file and records the information in a dictonary"""
+
+        for major, flag, course in file_reader(path, num_of_field=3, sep='\t', header=False):
+            if major not in self.major_course:
+                self.major_course[major] = Major(major)
+
+            self.major_course[major].add_course(flag, course)
+
     def stu_pretty_table(self):
         """This method populates the pretty table providing the summary of the students"""
 
@@ -118,7 +167,7 @@ class Repository:
         print()
         pt = PrettyTable(field_names=Student.stu_pt_header)
         for student in self.cwid_student.values():
-            pt.add_row(student.one_student())
+            pt.add_row(student.one_student(self.major_course[student.major]))
         print(pt)
 
     def inst_pretty_table(self):
@@ -131,6 +180,17 @@ class Repository:
         for instructor in self.cwid_instructor.values():
             for course in instructor.one_instructor():
                 pt.add_row(course)
+        print(pt)
+
+    def maj_pretty_table(self):
+        """This method populates the pretty table providing the summary of courses within a major"""
+
+        print()
+        print("Major Summary")
+        print()
+        pt = PrettyTable(field_names=Major.maj_pt_header)
+        for major in self.major_course.values():
+            pt.add_row(major.one_major())
         print(pt)
 
 def main():
