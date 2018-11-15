@@ -1,6 +1,7 @@
 from collections import defaultdict
 from prettytable import PrettyTable
 import os
+import sqlite3
 
 
 class Student:
@@ -173,14 +174,19 @@ class Repository:
     def inst_pretty_table(self):
         """This method populates the pretty table providing the summary of the instructors"""
 
+        DB_file = r"C:\Users\Asdf\PycharmProjects\SSW810\HW11.db"
+        db = sqlite3.connect(DB_file)
         print()
         print("Instructor Summary")
         print()
         pt = PrettyTable(field_names=Instructor.inst_pt_header)
-        for instructor in self.cwid_instructor.values():
-            for course in instructor.one_instructor():
-                pt.add_row(course)
-        print(pt)
+        query = """select i.CWID, i.Name, i.Dept, g.Course, count(g.Student_CWID) as cnt
+                from HW11_instructors i
+                join HW11_grades g on i.CWID = g.Instructor_CWID
+                group by i.CWID, i.Name, i.Dept, g.Course"""
+        for row in db.execute(query):
+            pt.add_row(row)
+        print (pt)
 
     def maj_pretty_table(self):
         """This method populates the pretty table providing the summary of courses within a major"""
