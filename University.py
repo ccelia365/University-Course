@@ -2,6 +2,7 @@ from collections import defaultdict
 from prettytable import PrettyTable
 import os
 import sqlite3
+from flask import Flask, render_template
 
 
 class Student:
@@ -171,33 +172,43 @@ class Repository:
             pt.add_row(student.one_student(self.major_course[student.major]))
         print(pt)
 
-    def inst_pretty_table(self):
-        """This method populates the pretty table providing the summary of the instructors"""
 
-        DB_file = r"C:\Users\Asdf\PycharmProjects\SSW810\HW11.db"
-        db = sqlite3.connect(DB_file)
-        print()
-        print("Instructor Summary")
-        print()
-        pt = PrettyTable(field_names=Instructor.inst_pt_header)
-        query = """select i.CWID, i.Name, i.Dept, g.Course, count(g.Student_CWID) as cnt
+app = Flask(__name__)
+@app.route('/instructor_summary')
+def instructor_summary():
+    """This method provides a summary of each instructor in a website"""
+
+    query = """select i.CWID, i.Name, i.Dept, g.Course, count(g.Student_CWID) as cnt
                 from HW11_instructors i
                 join HW11_grades g on i.CWID = g.Instructor_CWID
                 group by i.CWID, i.Name, i.Dept, g.Course"""
-        for row in db.execute(query):
-            pt.add_row(row)
-        print (pt)
 
-    def maj_pretty_table(self):
-        """This method populates the pretty table providing the summary of courses within a major"""
+    DB_file = r"C:\Users\Asdf\PycharmProjects\SSW810\HW11.db"
+    db = sqlite3.connect(DB_file)
+    results = db.execute(query)
 
-        print()
-        print("Major Summary")
-        print()
-        pt = PrettyTable(field_names=Major.maj_pt_header)
-        for major in self.major_course.values():
-            pt.add_row(major.one_major())
-        print(pt)
+    data = [{'cwid': cwid, 'name': name, 'department': department, 'course' : course, 'students': students}
+        for cwid, name, department, course, students in results]
+
+    db.close()
+
+    return render_template('instructor_summary.html',
+                title = 'Stevens Repository',
+                    table_title = 'Number of Students by Course and Instructor',
+                    instructors = data)
+
+app.run(debug=True)
+
+def maj_pretty_table(self):
+    """This method populates the pretty table providing the summary of courses within a major"""
+
+    print()
+    print("Major Summary")
+    print()
+    pt = PrettyTable(field_names=Major.maj_pt_header)
+    for major in self.major_course.values():
+        pt.add_row(major.one_major())
+    print(pt)
 
 def main():
     """This method calls the Repository Class"""
@@ -205,3 +216,5 @@ def main():
     Repository(r"C:\Users\Asdf\Downloads")
 
 main()
+
+
